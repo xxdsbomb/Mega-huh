@@ -1,77 +1,23 @@
 --[[
-    Overdrive MM2 Addon: Gold C4 Bomb Plugin
-    Импортируй этот URL в меню Plugins
+    Overdrive MM2 Addon: Gold C4 Bomb (Фоновый авто-гивер без кнопок)
 ]]
 
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local Debris = game:GetService("Debris")
 local localPlayer = Players.LocalPlayer
 
-local bombCooldown = 1.5 
+local bombCooldown = 1.5 -- Время жизни бомбы (сек)
 local canDropBomb = true
 
--- Создаем интерфейс. Overdrive выполнит этот код в своей среде.
+-- Удаляем старый интерфейс, если он остался в игре от прошлых запусков
 local playerGui = localPlayer:WaitForChild("PlayerGui")
-
--- Проверяем, чтобы интерфейс не дублировался, если ты импортируешь плагин несколько раз
 if playerGui:FindFirstChild("OverdriveBombAddonGui") then
 	playerGui.OverdriveBombAddonGui:Destroy()
 end
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "OverdriveBombAddonGui"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
-
-local autoButton = Instance.new("TextButton")
-autoButton.Name = "AutoGoldBombButton"
-autoButton.Size = UDim2.new(0, 160, 0, 40)
-autoButton.Position = UDim2.new(0.5, -80, 0.2, 0) -- Сместили чуть выше, чтобы не перекрывать нижнюю панель самого Overdrive
-autoButton.BackgroundColor3 = Color3.fromRGB(255, 215, 0) 
-autoButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-autoButton.TextSize = 14
-autoButton.Font = Enum.Font.SourceSansBold
-autoButton.Text = "⚡ Авто-взятие Бомбы"
-autoButton.Active = true
-autoButton.Parent = screenGui
-
-local uicorner = Instance.new("UICorner")
-uicorner.CornerRadius = UDim.new(0, 8)
-uicorner.Parent = autoButton
-
-local stroke = Instance.new("UIStroke")
-stroke.Thickness = 2
-stroke.Color = Color3.fromRGB(150, 110, 0)
-stroke.Parent = autoButton
-
--- Drag & Drop для мобилок
-local dragging, dragInput, dragStart, startPos
-local function update(input)
-	local delta = input.Position - dragStart
-	autoButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-
-autoButton.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = autoButton.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then dragging = false end
-		end)
-	end
-end)
-
-autoButton.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then update(input) end
-end)
-
--- Логика мешей и физики бомбы
+----------------------------------------------------------------
+-- 1. КРАСИВЫЙ ЭФФЕКТ РАДУЖНОГО ВЗРЫВА (ПАРТИКЛЫ)
+----------------------------------------------------------------
 local function createC4Block(color, isStatic)
 	local block = Instance.new("Part")
 	block.Shape = Enum.PartType.Block
@@ -129,6 +75,9 @@ local function createBeautifulRainbowParticles(parent)
 	return emitter
 end
 
+----------------------------------------------------------------
+-- 2. ЛОГИКА БОМБЫ И АВТО-УДАЛЕНИЯ ЧЕРЕЗ DEBRIS
+----------------------------------------------------------------
 local function setupBombLogic(tool, color)
 	tool.RequiresHandle = true
 	local handle = createC4Block(color, false)
@@ -158,7 +107,7 @@ local function setupBombLogic(tool, color)
 			
 			droppedBlock.Velocity = Vector3.new(0, -12, 0)
 
-			-- Удаление через Debris (Жесткая очистка)
+			-- Жесткое удаление блока из Workspace
 			Debris:AddItem(droppedBlock, bombCooldown)
 
 			task.spawn(function()
@@ -187,6 +136,9 @@ local function setupBombLogic(tool, color)
 	end)
 end
 
+----------------------------------------------------------------
+-- 3. ПОЛНОСТЬЮ АВТОМАТИЧЕСКАЯ ВЫДАЧА (БЕЗ КНОПОК)
+----------------------------------------------------------------
 local function giveGoldBomb()
 	local backpack = localPlayer:WaitForChild("Backpack")
 	if not backpack:FindFirstChild("Gold C4 Block") and not (localPlayer.Character and localPlayer.Character:FindFirstChild("Gold C4 Block")) then
@@ -197,17 +149,15 @@ local function giveGoldBomb()
 	end
 end
 
--- Клик по кнопке плагина
-autoButton.MouseButton1Down:Connect(giveGoldBomb)
-
--- Авто-выдача при спавнах внутри Overdrive
+-- Триггер на возрождение персонажа
 localPlayer.CharacterAdded:Connect(function()
 	task.wait(0.8) 
 	giveGoldBomb()
 end)
 
+-- Выдать сразу, если плагин запущен посреди игры
 if localPlayer.Character then 
 	giveGoldBomb() 
 end
 
-print("Overdrive Gold Bomb Plugin Loaded successfully!")
+print("Silent Overdrive Gold Bomb Plugin Loaded!")
