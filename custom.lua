@@ -1,22 +1,71 @@
 --[[
-    Overdrive MM2 Addon: Gold C4 Bomb (Фоновый авто-гивер без кнопок)
+    Overdrive MM2 Addon: Gold C4 Plugin (English UI Mini Buttons)
 ]]
 
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
 local localPlayer = Players.LocalPlayer
 
-local bombCooldown = 1.5 -- Время жизни бомбы (сек)
+local bombCooldown = 1.5
 local canDropBomb = true
+local autoGiveEnabled = true 
 
--- Удаляем старый интерфейс, если он остался в игре от прошлых запусков
 local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+-- Удаляем старые интерфейсы, чтобы не наслаивались
+if playerGui:FindFirstChild("OverdriveBombPluginContainer") then
+	playerGui.OverdriveBombPluginContainer:Destroy()
+end
 if playerGui:FindFirstChild("OverdriveBombAddonGui") then
 	playerGui.OverdriveBombAddonGui:Destroy()
 end
 
 ----------------------------------------------------------------
--- 1. КРАСИВЫЙ ЭФФЕКТ РАДУЖНОГО ВЗРЫВА (ПАРТИКЛЫ)
+-- СОЗДАНИЕ МАЛЕНЬКОЙ ПАНЕЛИ УПРАВЛЕНИЯ В УГЛУ ЭКРАНА
+----------------------------------------------------------------
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "OverdriveBombPluginContainer"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Контейнер в левом верхнем углу (чуть ниже стандартного меню Roblox)
+local container = Instance.new("Frame")
+container.Size = UDim2.new(0, 180, 0, 30)
+container.Position = UDim2.new(0, 15, 0, 60) 
+container.BackgroundTransparency = 1
+container.Parent = screenGui
+
+local layout = Instance.new("UIListLayout")
+layout.FillDirection = Enum.FillDirection.Horizontal
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Padding = UDim.new(0, 6)
+layout.Parent = container
+
+-- Функция для мини-кнопок
+local function createMiniButton(text, color, order)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 85, 1, 0)
+	btn.BackgroundColor3 = color
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Font = Enum.Font.SourceSansBold
+	btn.TextSize = 11
+	btn.Text = text
+	btn.LayoutOrder = order
+	btn.Parent = container
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 4)
+	corner.Parent = btn
+	
+	return btn
+end
+
+-- Кнопки теперь полностью на английском
+local removeBtn = createMiniButton("❌ Remove C4", Color3.fromRGB(150, 40, 40), 1)
+local returnBtn = createMiniButton("♻️ Return C4", Color3.fromRGB(40, 130, 40), 2)
+
+----------------------------------------------------------------
+-- МЕХАНИКА РАДУЖНОЙ БОМБЫ
 ----------------------------------------------------------------
 local function createC4Block(color, isStatic)
 	local block = Instance.new("Part")
@@ -75,9 +124,6 @@ local function createBeautifulRainbowParticles(parent)
 	return emitter
 end
 
-----------------------------------------------------------------
--- 2. ЛОГИКА БОМБЫ И АВТО-УДАЛЕНИЯ ЧЕРЕЗ DEBRIS
-----------------------------------------------------------------
 local function setupBombLogic(tool, color)
 	tool.RequiresHandle = true
 	local handle = createC4Block(color, false)
@@ -107,7 +153,6 @@ local function setupBombLogic(tool, color)
 			
 			droppedBlock.Velocity = Vector3.new(0, -12, 0)
 
-			-- Жесткое удаление блока из Workspace
 			Debris:AddItem(droppedBlock, bombCooldown)
 
 			task.spawn(function()
@@ -137,9 +182,10 @@ local function setupBombLogic(tool, color)
 end
 
 ----------------------------------------------------------------
--- 3. ПОЛНОСТЬЮ АВТОМАТИЧЕСКАЯ ВЫДАЧА (БЕЗ КНОПОК)
+-- УПРАВЛЕНИЕ ВЫДАЧЕЙ
 ----------------------------------------------------------------
 local function giveGoldBomb()
+	if not autoGiveEnabled then return end
 	local backpack = localPlayer:WaitForChild("Backpack")
 	if not backpack:FindFirstChild("Gold C4 Block") and not (localPlayer.Character and localPlayer.Character:FindFirstChild("Gold C4 Block")) then
 		local goldTool = Instance.new("Tool")
@@ -149,15 +195,34 @@ local function giveGoldBomb()
 	end
 end
 
--- Триггер на возрождение персонажа
+local function removeGoldBomb()
+	local backpack = localPlayer:FindFirstChild("Backpack")
+	if backpack then
+		local item = backpack:FindFirstChild("Gold C4 Block")
+		if item then item:Destroy() end
+	end
+	local character = localPlayer.Character
+	if character then
+		local item = character:FindFirstChild("Gold C4 Block")
+		if item then item:Destroy() end
+	end
+end
+
+removeBtn.MouseButton1Down:Connect(function()
+	autoGiveEnabled = false
+	removeGoldBomb()
+end)
+
+returnBtn.MouseButton1Down:Connect(function()
+	autoGiveEnabled = true
+	giveGoldBomb()
+end)
+
 localPlayer.CharacterAdded:Connect(function()
 	task.wait(0.8) 
 	giveGoldBomb()
 end)
 
--- Выдать сразу, если плагин запущен посреди игры
 if localPlayer.Character then 
 	giveGoldBomb() 
 end
-
-print("Silent Overdrive Gold Bomb Plugin Loaded!")
